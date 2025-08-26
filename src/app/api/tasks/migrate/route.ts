@@ -11,6 +11,7 @@ export async function POST(request: Request) {
     const client = await clientPromise;
     const db = client.db();
 
+    // Do not migrate completed tasks
     const result = await db.collection('tasks').updateMany(
       { date: from, completed: false },
       { $set: { date: to } }

@@ -25,14 +25,22 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [selectedDate, setSelectedDate] = useState(() => startOfDay(new Date()));
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const formattedDate = useMemo(() => format(selectedDate, 'yyyy-MM-dd'), [selectedDate]);
+  useEffect(() => {
+    setSelectedDate(startOfDay(new Date()));
+  }, []);
+
+  const formattedDate = useMemo(() => {
+    return selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
+  }, [selectedDate]);
 
   useEffect(() => {
+    if (!formattedDate) return;
+
     const fetchTasks = async () => {
       setLoading(true);
       try {
@@ -62,7 +70,7 @@ export default function Home() {
   };
 
   const addTask = async (text: string, category: Task['category']) => {
-    if (text.trim() === '') return;
+    if (text.trim() === '' || !formattedDate) return;
     const optimisticTask: Task = {
       _id: new Date().toISOString(), // temporary id
       text,
@@ -178,10 +186,12 @@ export default function Home() {
       if (!response.ok) throw new Error(data.message || 'Migration failed');
 
       if (data.migratedCount > 0) {
-        // Refetch tasks for today to show migrated ones
-        const fetchResponse = await fetch(`/api/tasks?date=${formattedDate}`);
-        const fetchedTasks = await fetchResponse.json();
-        setTasks(fetchedTasks);
+        if(formattedDate === today) {
+            // Refetch tasks for today to show migrated ones
+            const fetchResponse = await fetch(`/api/tasks?date=${formattedDate}`);
+            const fetchedTasks = await fetchResponse.json();
+            setTasks(fetchedTasks);
+        }
 
         toast({
           title: "Tasks Migrated",
@@ -202,6 +212,49 @@ export default function Home() {
       });
     }
   };
+
+  if (!selectedDate) {
+    return (
+       <div className="flex flex-col h-dvh bg-background text-foreground">
+        <AppHeader onMigrateTasks={() => {}} />
+         <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+            <div className="p-2 rounded-xl shadow-sm">
+                <div className="flex items-center justify-between mb-2 px-2">
+                    <Skeleton className="h-10 w-10" />
+                    <Skeleton className="h-6 w-28" />
+                    <Skeleton className="h-10 w-10" />
+                </div>
+                <div className="grid grid-cols-7 gap-1">
+                    {Array.from({ length: 7 }).map((_, i) => (
+                        <Skeleton key={i} className="h-[72px] w-full" />
+                    ))}
+                </div>
+            </div>
+            <Card className="overflow-hidden">
+                <CardContent className="p-4 md:p-6">
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                           <div className="flex justify-between items-center text-sm text-muted-foreground">
+                              <p>Daily Progress</p>
+                              <p>0 / 0 completed</p>
+                           </div>
+                          <Skeleton className="h-4 w-full" />
+                        </div>
+                        <div className="space-y-2 pt-2">
+                            <Skeleton className="h-[68px] w-full" />
+                            <Skeleton className="h-[68px] w-full" />
+                            <Skeleton className="h-[68px] w-full" />
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        </main>
+         <footer className="p-4 border-t shrink-0 bg-background">
+            <Skeleton className="h-12 w-full" />
+        </footer>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-dvh bg-background text-foreground">
