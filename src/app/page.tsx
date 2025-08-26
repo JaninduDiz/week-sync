@@ -101,7 +101,7 @@ export default function Home() {
   }, [tasks, selectedDate]);
 
   return (
-    <div className="flex flex-col h-screen max-h-screen bg-background text-foreground">
+    <div className="flex flex-col h-dvh bg-background text-foreground">
       <AppHeader onMigrateTasks={migrateTasks} />
 
       <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
@@ -125,7 +125,7 @@ export default function Home() {
         </Card>
       </main>
 
-      <footer className="p-4 border-t shrink-0">
+      <footer className="p-4 border-t shrink-0 bg-background">
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="w-full h-12" size="lg">
