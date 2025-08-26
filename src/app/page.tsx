@@ -35,22 +35,6 @@ export default function Home() {
     setTasks([...tasks, newTask]);
   };
   
-  const addSuggestedTasks = (suggestedTasks: string[], category: Task['category']) => {
-    const newTasks: Task[] = suggestedTasks.map(text => ({
-      id: uuidv4(),
-      text,
-      completed: false,
-      category,
-      date: format(selectedDate, 'yyyy-MM-dd'),
-      isImportant: false,
-    }));
-    setTasks([...tasks, ...newTasks]);
-    toast({
-      title: "Tasks Added",
-      description: `${newTasks.length} new tasks have been added to your list.`,
-    })
-  };
-
   const toggleTask = (id: string) => {
     setTasks(
       tasks.map(task =>
@@ -105,7 +89,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col h-screen max-h-screen bg-background text-foreground">
-      <AppHeader onMigrateTasks={migrateTasks} addSuggestedTasks={addSuggestedTasks} />
+      <AppHeader onMigrateTasks={migrateTasks} />
 
       <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
         <WeeklyCalendar
