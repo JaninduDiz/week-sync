@@ -1,4 +1,5 @@
-export type TaskCategory = 'learn' | 'code' | 'chores' | 'errands';
+
+export type TaskCategory = 'learn' | 'code' | 'chores' | 'errands' | 'other';
 
 export interface Task {
   id: string;

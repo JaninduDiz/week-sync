@@ -1,3 +1,4 @@
+
 "use client"
 
 import { motion } from "framer-motion"
@@ -19,6 +20,7 @@ const categoryColors: Record<TaskCategory, string> = {
   code: "bg-green-400",
   chores: "bg-yellow-400",
   errands: "bg-purple-400",
+  other: "bg-gray-400",
 };
 
 export default function TaskItem({
@@ -69,7 +71,7 @@ export default function TaskItem({
         onClick={() => onToggleImportance(task.id)}
         aria-label={task.isImportant ? "Unmark as important" : "Mark as important"}
       >
-        <Flag className={cn("h-4 w-4 text-muted-foreground", task.isImportant && "fill-current text-accent")} />
+        <Flag className={cn("h-4 w-4 text-muted-foreground", task.isImportant && "fill-current text-primary")} />
       </Button>
       <Button
         variant="ghost"

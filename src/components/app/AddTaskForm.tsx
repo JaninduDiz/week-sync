@@ -1,17 +1,18 @@
+
 "use client"
 
 import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
-import { cn } from "@/lib/utils"
 import type { TaskCategory } from "@/types/task"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface AddTaskFormProps {
   onAddTask: (text: string, category: TaskCategory) => void
 }
 
-const categories: TaskCategory[] = ['learn', 'code', 'chores', 'errands'];
+const categories: TaskCategory[] = ['learn', 'code', 'chores', 'errands', 'other'];
 
 export default function AddTaskForm({ onAddTask }: AddTaskFormProps) {
   const [text, setText] = useState("")
@@ -19,38 +20,38 @@ export default function AddTaskForm({ onAddTask }: AddTaskFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    if (text.trim() === '') return
     onAddTask(text, category)
     setText("")
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 pt-4 border-t">
-      <div className="flex gap-2">
-        {categories.map((cat) => (
-          <Button
-            key={cat}
-            type="button"
-            variant={category === cat ? "default" : "secondary"}
-            size="sm"
-            onClick={() => setCategory(cat)}
-            className="capitalize flex-1"
-          >
-            {cat}
-          </Button>
-        ))}
-      </div>
-      <div className="flex w-full items-center gap-2">
+       <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
         <Input
           type="text"
           value={text}
           onChange={e => setText(e.target.value)}
           placeholder="Add a new task..."
-          className="h-11"
+          className="h-11 md:col-span-2"
         />
-        <Button type="submit" size="icon" className="h-11 w-11 shrink-0" aria-label="Add task">
-          <Plus className="h-5 w-5" />
-        </Button>
+        <Select onValueChange={(value: TaskCategory) => setCategory(value)} defaultValue={category}>
+          <SelectTrigger className="h-11">
+            <SelectValue placeholder="Select a category" />
+          </SelectTrigger>
+          <SelectContent>
+            {categories.map((cat) => (
+              <SelectItem key={cat} value={cat} className="capitalize">
+                {cat}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
+      <Button type="submit" className="w-full h-11">
+        <Plus className="h-5 w-5 mr-2" />
+        Add Task
+      </Button>
     </form>
   )
 }
