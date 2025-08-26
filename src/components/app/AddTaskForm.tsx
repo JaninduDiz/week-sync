@@ -26,7 +26,7 @@ export default function AddTaskForm({ onAddTask }: AddTaskFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 pt-4 border-t">
+    <form onSubmit={handleSubmit} className="space-y-3 pt-4">
        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
         <Input
           type="text"

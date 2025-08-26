@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from 'react';
@@ -12,10 +13,21 @@ import TaskList from '@/components/app/TaskList';
 import AddTaskForm from '@/components/app/AddTaskForm';
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 export default function Home() {
   const [tasks, setTasks] = useLocalStorage<Task[]>('tasks', []);
   const [selectedDate, setSelectedDate] = useState(() => startOfDay(new Date()));
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const handleDateSelect = (date: Date) => {
@@ -33,6 +45,7 @@ export default function Home() {
       isImportant: false,
     };
     setTasks([...tasks, newTask]);
+    setIsDialogOpen(false);
   };
   
   const toggleTask = (id: string) => {
@@ -107,11 +120,30 @@ export default function Home() {
                  onDelete={deleteTask}
                  onToggleImportance={toggleImportance}
                />
-               <AddTaskForm onAddTask={addTask} />
             </div>
           </CardContent>
         </Card>
       </main>
+
+      <footer className="p-4 border-t shrink-0">
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="w-full h-12" size="lg">
+              <Plus className="h-5 w-5 mr-2" />
+              Add New Task
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add a new task</DialogTitle>
+              <DialogDescription>
+                What do you want to get done?
+              </DialogDescription>
+            </DialogHeader>
+            <AddTaskForm onAddTask={addTask} />
+          </DialogContent>
+        </Dialog>
+      </footer>
     </div>
   );
 }
