@@ -26,11 +26,11 @@ export default function TaskList({
   }
 
   const sortedTasks = [...tasks].sort((a, b) => {
-    if (a.isImportant !== b.isImportant) {
-      return a.isImportant ? -1 : 1;
-    }
     if (a.completed !== b.completed) {
       return a.completed ? 1 : -1;
+    }
+    if (a.isImportant !== b.isImportant) {
+      return a.isImportant ? -1 : 1;
     }
     // Fallback to sorting by _id, maybe creation time if available
     return (a._id || '').localeCompare(b._id || '');

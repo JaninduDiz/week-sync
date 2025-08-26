@@ -22,12 +22,18 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import WeekView from '@/components/app/WeekView';
+import { startOfWeek } from 'date-fns';
 
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState('day');
+  const [weekTasks, setWeekTasks] = useState<Record<string, Task[]>>({});
+
   const { toast } = useToast();
 
   useEffect(() => {
@@ -36,6 +42,10 @@ export default function Home() {
 
   const formattedDate = useMemo(() => {
     return selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
+  }, [selectedDate]);
+
+  const weekStartDate = useMemo(() => {
+    return selectedDate ? format(startOfWeek(selectedDate, { weekStartsOn: 1 }), 'yyyy-MM-dd') : null;
   }, [selectedDate]);
 
   useEffect(() => {
@@ -64,6 +74,43 @@ export default function Home() {
     fetchTasks();
   }, [formattedDate, toast]);
 
+  useEffect(() => {
+    if (view !== 'week' || !weekStartDate) return;
+
+    const fetchWeekTasks = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(`/api/tasks/week?startOfWeek=${weekStartDate}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch weekly tasks');
+        }
+        const data = await response.json();
+        setWeekTasks(data);
+      } catch (error) {
+        console.error(error);
+        toast({
+          title: "Error",
+          description: "Failed to load weekly tasks. Please try again later.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchWeekTasks();
+  }, [view, weekStartDate, toast]);
+
+  const refetchCurrentView = async () => {
+    if (view === 'day' && formattedDate) {
+      const response = await fetch(`/api/tasks?date=${formattedDate}`);
+      const data = await response.json();
+      setTasks(data);
+    } else if (view === 'week' && weekStartDate) {
+      const response = await fetch(`/api/tasks/week?startOfWeek=${weekStartDate}`);
+      const data = await response.json();
+      setWeekTasks(data);
+    }
+  }
 
   const handleDateSelect = (date: Date) => {
     setSelectedDate(startOfDay(date));
@@ -80,8 +127,17 @@ export default function Home() {
       isImportant: false,
     };
 
-    setTasks(prev => [...prev, optimisticTask]);
     setIsDialogOpen(false);
+    // Optimistic update for both views
+    if (view === 'day') {
+      setTasks(prev => [...prev, optimisticTask]);
+    } else {
+      setWeekTasks(prev => ({
+        ...prev,
+        [formattedDate]: [...(prev[formattedDate] || []), optimisticTask],
+      }));
+    }
+
 
     try {
       const response = await fetch('/api/tasks', {
@@ -90,8 +146,10 @@ export default function Home() {
         body: JSON.stringify({ text, category, date: formattedDate }),
       });
       if (!response.ok) throw new Error('Failed to add task');
-      const newTask = await response.json();
-      setTasks(prev => prev.map(t => t._id === optimisticTask._id ? newTask : t));
+      
+      // Refetch data to get the real task from the server
+      await refetchCurrentView();
+
     } catch (error) {
       console.error(error);
       toast({
@@ -99,24 +157,31 @@ export default function Home() {
         description: "Failed to save task. Please try again.",
         variant: "destructive",
       });
-      setTasks(prev => prev.filter(t => t._id !== optimisticTask._id));
+      // Revert optimistic update
+      await refetchCurrentView();
     }
   };
   
-  const toggleTask = async (id: string) => {
-    const task = tasks.find(t => t._id === id);
-    if (!task) return;
+  const toggleTask = async (id: string, date: string) => {
+     try {
+      const taskToToggle = view === 'day'
+        ? tasks.find(t => t._id === id)
+        : weekTasks[date]?.find(t => t._id === id);
 
-    const updatedTask = { ...task, completed: !task.completed };
-    setTasks(tasks.map(t => t._id === id ? updatedTask : t));
+      if (!taskToToggle) return;
 
-    try {
+      const updatedCompletedState = !taskToToggle.completed;
+      
       const response = await fetch(`/api/tasks/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ completed: updatedTask.completed }),
+        body: JSON.stringify({ completed: updatedCompletedState }),
       });
+
       if (!response.ok) throw new Error('Failed to update task');
+      
+      await refetchCurrentView();
+
     } catch (error) {
        console.error(error);
        toast({
@@ -124,18 +189,14 @@ export default function Home() {
         description: "Failed to sync task update. Please check your connection.",
         variant: "destructive",
       });
-      // Revert optimistic update
-      setTasks(tasks.map(t => t._id === id ? task : t));
     }
   };
 
   const deleteTask = async (id: string) => {
-    const originalTasks = [...tasks];
-    setTasks(tasks.filter(task => task._id !== id));
-    
     try {
       const response = await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Failed to delete task');
+      await refetchCurrentView();
     } catch (error) {
       console.error(error);
       toast({
@@ -143,24 +204,28 @@ export default function Home() {
         description: "Failed to delete task. Please try again.",
         variant: "destructive",
       });
-      setTasks(originalTasks);
     }
   };
   
-  const toggleImportance = async (id: string) => {
-    const task = tasks.find(t => t._id === id);
-    if (!task) return;
-
-    const updatedTask = { ...task, isImportant: !task.isImportant };
-    setTasks(tasks.map(t => t._id === id ? updatedTask : t));
-
+  const toggleImportance = async (id: string, date: string) => {
     try {
+      const taskToToggle = view === 'day'
+        ? tasks.find(t => t._id === id)
+        : weekTasks[date]?.find(t => t._id === id);
+
+      if (!taskToToggle) return;
+
+      const updatedImportanceState = !taskToToggle.isImportant;
+      
       const response = await fetch(`/api/tasks/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isImportant: updatedTask.isImportant }),
+        body: JSON.stringify({ isImportant: updatedImportanceState }),
       });
+
       if (!response.ok) throw new Error('Failed to update task');
+      await refetchCurrentView();
+
     } catch (error) {
        console.error(error);
        toast({
@@ -168,7 +233,6 @@ export default function Home() {
         description: "Failed to sync task update. Please check your connection.",
         variant: "destructive",
       });
-      setTasks(tasks.map(t => t._id === id ? task : t));
     }
   };
 
@@ -186,13 +250,7 @@ export default function Home() {
       if (!response.ok) throw new Error(data.message || 'Migration failed');
 
       if (data.migratedCount > 0) {
-        if(formattedDate === today) {
-            // Refetch tasks for today to show migrated ones
-            const fetchResponse = await fetch(`/api/tasks?date=${formattedDate}`);
-            const fetchedTasks = await fetchResponse.json();
-            setTasks(fetchedTasks);
-        }
-
+        await refetchCurrentView();
         toast({
           title: "Tasks Migrated",
           description: `${data.migratedCount} incomplete task(s) from yesterday have been moved to today.`,
@@ -266,27 +324,45 @@ export default function Home() {
           onDateSelect={handleDateSelect}
         />
 
-        <Card className="overflow-hidden">
-          <CardContent className="p-4 md:p-6">
-            <div className="space-y-4">
-               <ProgressTracker tasks={tasks} />
-                {loading ? (
-                  <div className="space-y-2 pt-2">
-                    <Skeleton className="h-[68px] w-full" />
-                    <Skeleton className="h-[68px] w-full" />
-                    <Skeleton className="h-[68px] w-full" />
-                  </div>
-                ) : (
-                  <TaskList
-                    tasks={tasks}
-                    onToggle={toggleTask}
-                    onDelete={deleteTask}
-                    onToggleImportance={toggleImportance}
-                  />
-                )}
-            </div>
-          </CardContent>
-        </Card>
+        <Tabs value={view} onValueChange={setView} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="day">Day</TabsTrigger>
+            <TabsTrigger value="week">Week</TabsTrigger>
+          </TabsList>
+          <TabsContent value="day">
+            <Card className="overflow-hidden">
+              <CardContent className="p-4 md:p-6">
+                <div className="space-y-4">
+                  <ProgressTracker tasks={tasks} />
+                  {loading ? (
+                    <div className="space-y-2 pt-2">
+                      <Skeleton className="h-[68px] w-full" />
+                      <Skeleton className="h-[68px] w-full" />
+                      <Skeleton className="h-[68px] w-full" />
+                    </div>
+                  ) : (
+                    <TaskList
+                      tasks={tasks}
+                      onToggle={(id) => toggleTask(id, formattedDate!)}
+                      onDelete={deleteTask}
+                      onToggleImportance={(id) => toggleImportance(id, formattedDate!)}
+                    />
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="week">
+            <WeekView 
+              tasksByDay={weekTasks}
+              startDate={startOfWeek(selectedDate, { weekStartsOn: 1 })}
+              loading={loading}
+              onToggleTask={toggleTask}
+              onDeleteTask={deleteTask}
+              onToggleImportance={toggleImportance}
+            />
+          </TabsContent>
+        </Tabs>
       </main>
 
       <footer className="p-4 border-t shrink-0 bg-background">
@@ -301,7 +377,7 @@ export default function Home() {
             <DialogHeader>
               <DialogTitle>Add a new task</DialogTitle>
               <DialogDescription>
-                What do you want to get done?
+                What do you want to get done on {format(selectedDate, "MMM d")}?
               </DialogDescription>
             </DialogHeader>
             <AddTaskForm onAddTask={addTask} />
