@@ -1,3 +1,4 @@
+// This hook is no longer used for tasks, but may be useful for other client-side state.
 "use client";
 
 import { useState, useEffect } from 'react';

@@ -29,6 +29,7 @@ export default function TaskItem({
   onDelete,
   onToggleImportance,
 }: TaskItemProps) {
+  const id = task._id!;
   return (
     <motion.div
       layout
@@ -42,16 +43,16 @@ export default function TaskItem({
       )}
     >
       <Checkbox
-        id={`task-${task.id}`}
+        id={`task-${id}`}
         checked={task.completed}
-        onCheckedChange={() => onToggle(task.id)}
-        aria-labelledby={`task-label-${task.id}`}
+        onCheckedChange={() => onToggle(id)}
+        aria-labelledby={`task-label-${id}`}
         className="w-5 h-5 rounded-full"
       />
       <div className="flex-1">
         <label
-          id={`task-label-${task.id}`}
-          htmlFor={`task-${task.id}`}
+          id={`task-label-${id}`}
+          htmlFor={`task-${id}`}
           className={cn(
             "font-medium transition-colors",
             task.completed && "line-through text-muted-foreground"
@@ -68,7 +69,7 @@ export default function TaskItem({
         variant="ghost"
         size="icon"
         className="h-8 w-8"
-        onClick={() => onToggleImportance(task.id)}
+        onClick={() => onToggleImportance(id)}
         aria-label={task.isImportant ? "Unmark as important" : "Mark as important"}
       >
         <Flag className={cn("h-4 w-4 text-muted-foreground", task.isImportant && "fill-current text-primary")} />
@@ -77,7 +78,7 @@ export default function TaskItem({
         variant="ghost"
         size="icon"
         className="h-8 w-8"
-        onClick={() => onDelete(task.id)}
+        onClick={() => onDelete(id)}
         aria-label="Delete task"
       >
         <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />

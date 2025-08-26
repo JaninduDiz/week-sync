@@ -32,14 +32,15 @@ export default function TaskList({
     if (a.completed !== b.completed) {
       return a.completed ? 1 : -1;
     }
-    return 0;
+    // Fallback to sorting by _id, maybe creation time if available
+    return (a._id || '').localeCompare(b._id || '');
   });
 
   return (
     <div className="space-y-2">
       {sortedTasks.map(task => (
         <TaskItem
-          key={task.id}
+          key={task._id}
           task={task}
           onToggle={onToggle}
           onDelete={onDelete}

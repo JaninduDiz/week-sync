@@ -2,7 +2,8 @@
 export type TaskCategory = 'learn' | 'code' | 'chores' | 'errands' | 'other';
 
 export interface Task {
-  id: string;
+  _id?: string; // MongoDB's default ID is _id
+  id?: string; // Kept for compatibility if used elsewhere
   text: string;
   completed: boolean;
   category: TaskCategory;
