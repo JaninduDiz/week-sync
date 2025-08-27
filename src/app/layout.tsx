@@ -1,4 +1,5 @@
 
+
 import type { Metadata, Viewport } from 'next';
 import { Toaster } from "@/components/ui/toaster";
 import './globals.css';
@@ -27,10 +28,12 @@ export default function RootLayout({
       <head>
         <link rel="manifest" href="/manifest.webmanifest" />
       </head>
-      <body className="font-sans antialiased">
+      <body className="font-sans antialiased" suppressHydrationWarning>
         {children}
         <Toaster />
       </body>
     </html>
   );
 }
+
+    
