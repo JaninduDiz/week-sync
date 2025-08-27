@@ -25,6 +25,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import WeekView from '@/components/app/WeekView';
 import { startOfWeek } from 'date-fns';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -318,49 +319,57 @@ export default function Home() {
     <div className="flex flex-col h-dvh bg-background text-foreground">
       <AppHeader onMigrateTasks={migrateTasks} />
 
-      <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+      <main className="flex flex-col flex-1 p-4 md:p-6 space-y-4 overflow-hidden">
         <WeeklyCalendar
           selectedDate={selectedDate}
           onDateSelect={handleDateSelect}
         />
 
-        <Tabs value={view} onValueChange={setView} className="w-full">
+        <Tabs value={view} onValueChange={setView} className="w-full flex flex-col flex-1 overflow-hidden">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="day">Day</TabsTrigger>
             <TabsTrigger value="week">Week</TabsTrigger>
           </TabsList>
-          <TabsContent value="day">
-            <Card className="overflow-hidden">
-              <CardContent className="p-4 md:p-6">
-                <div className="space-y-4">
-                  <ProgressTracker tasks={tasks} />
-                  {loading ? (
-                    <div className="space-y-2 pt-2">
-                      <Skeleton className="h-[68px] w-full" />
-                      <Skeleton className="h-[68px] w-full" />
-                      <Skeleton className="h-[68px] w-full" />
-                    </div>
-                  ) : (
-                    <TaskList
-                      tasks={tasks}
-                      onToggle={(id) => toggleTask(id, formattedDate!)}
-                      onDelete={deleteTask}
-                      onToggleImportance={(id) => toggleImportance(id, formattedDate!)}
-                    />
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="day" className="flex-1 overflow-hidden mt-4">
+            <ScrollArea className="h-full">
+               <div className="pr-4 space-y-4">
+                  <Card className="overflow-hidden">
+                    <CardContent className="p-4 md:p-6">
+                      <div className="space-y-4">
+                        <ProgressTracker tasks={tasks} />
+                        {loading ? (
+                          <div className="space-y-2 pt-2">
+                            <Skeleton className="h-[68px] w-full" />
+                            <Skeleton className="h-[68px] w-full" />
+                            <Skeleton className="h-[68px] w-full" />
+                          </div>
+                        ) : (
+                          <TaskList
+                            tasks={tasks}
+                            onToggle={(id) => toggleTask(id, formattedDate!)}
+                            onDelete={deleteTask}
+                            onToggleImportance={(id) => toggleImportance(id, formattedDate!)}
+                          />
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+              </div>
+            </ScrollArea>
           </TabsContent>
-          <TabsContent value="week">
-            <WeekView 
-              tasksByDay={weekTasks}
-              startDate={startOfWeek(selectedDate, { weekStartsOn: 1 })}
-              loading={loading}
-              onToggleTask={toggleTask}
-              onDeleteTask={deleteTask}
-              onToggleImportance={toggleImportance}
-            />
+          <TabsContent value="week" className="flex-1 overflow-hidden mt-4">
+            <ScrollArea className="h-full">
+              <div className="pr-4">
+                <WeekView 
+                  tasksByDay={weekTasks}
+                  startDate={startOfWeek(selectedDate, { weekStartsOn: 1 })}
+                  loading={loading}
+                  onToggleTask={toggleTask}
+                  onDeleteTask={deleteTask}
+                  onToggleImportance={toggleImportance}
+                />
+              </div>
+            </ScrollArea>
           </TabsContent>
         </Tabs>
       </main>
