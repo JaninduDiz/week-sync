@@ -1,3 +1,4 @@
+
 "use client"
 
 import TaskItem from "./TaskItem"
@@ -5,13 +6,15 @@ import type { Task } from "@/types/task"
 
 interface TaskListProps {
   tasks: Task[]
-  onToggle: (id: string) => void
-  onDelete: (id: string) => void
-  onToggleImportance: (id: string) => void
+  date: string;
+  onToggle: (id: string, date: string) => void
+  onDelete: (id: string, date: string) => void
+  onToggleImportance: (id: string, date: string) => void
 }
 
 export default function TaskList({
   tasks,
+  date,
   onToggle,
   onDelete,
   onToggleImportance,
@@ -32,7 +35,6 @@ export default function TaskList({
     if (a.isImportant !== b.isImportant) {
       return a.isImportant ? -1 : 1;
     }
-    // Fallback to sorting by _id, maybe creation time if available
     return (a._id || '').localeCompare(b._id || '');
   });
 
@@ -42,9 +44,9 @@ export default function TaskList({
         <TaskItem
           key={task._id}
           task={task}
-          onToggle={onToggle}
-          onDelete={onDelete}
-          onToggleImportance={onToggleImportance}
+          onToggle={(id) => onToggle(id, date)}
+          onDelete={(id) => onDelete(id, date)}
+          onToggleImportance={(id) => onToggleImportance(id, date)}
         />
       ))}
     </div>

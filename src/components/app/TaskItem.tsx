@@ -1,6 +1,7 @@
 
 "use client"
 
+import { memo } from "react";
 import { motion } from "framer-motion"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
@@ -23,7 +24,7 @@ const categoryColors: Record<TaskCategory, string> = {
   other: "bg-gray-400",
 };
 
-export default function TaskItem({
+function TaskItem({
   task,
   onToggle,
   onDelete,
@@ -86,3 +87,5 @@ export default function TaskItem({
     </motion.div>
   )
 }
+
+export default memo(TaskItem);
