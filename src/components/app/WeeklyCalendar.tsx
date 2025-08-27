@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useMemo, memo } from 'react'
+import { useState, useMemo, memo, useEffect } from 'react'
 import {
   eachDayOfInterval,
   startOfWeek,
