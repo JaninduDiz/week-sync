@@ -1,3 +1,4 @@
+
 import type { Metadata, Viewport } from 'next';
 import { Toaster } from "@/components/ui/toaster";
 import './globals.css';
@@ -5,7 +6,7 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'WeekSync',
   description: 'A Progressive Web App for tracking Weekly Tasks and daily tasks with a native iOS-like design.',
-  manifest: '/manifest.json',
+  manifest: '/manifest.webmanifest',
   icons: { apple: '/icon.png' },
 };
 
@@ -23,6 +24,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="manifest" href="/manifest.webmanifest" />
+      </head>
       <body className="font-sans antialiased">
         {children}
         <Toaster />

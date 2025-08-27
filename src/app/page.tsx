@@ -365,7 +365,7 @@ export default function Home() {
         </Tabs>
       </main>
 
-      <footer className="mb-2 p-4 border-t shrink-0 bg-background">
+      <footer className="p-4 border-t shrink-0 bg-background">
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="w-full h-12" size="lg">
