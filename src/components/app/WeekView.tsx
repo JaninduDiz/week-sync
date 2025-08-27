@@ -1,3 +1,4 @@
+
 "use client"
 
 import { format, addDays } from 'date-fns'
@@ -11,7 +12,7 @@ interface WeekViewProps {
   startDate: Date;
   loading: boolean;
   onToggleTask: (id: string, date: string) => void;
-  onDeleteTask: (id: string) => void;
+  onDeleteTask: (id: string, date: string) => void;
   onToggleImportance: (id: string, date: string) => void;
 }
 
@@ -20,9 +21,9 @@ export default function WeekView({ tasksByDay, startDate, loading, onToggleTask,
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4 items-start">
         {days.map(day => (
-          <Card key={day.toString()} className="flex flex-col">
+          <Card key={day.toString()} className="flex flex-col h-full">
             <CardHeader className="p-4">
               <CardTitle className="text-sm font-medium flex justify-between items-center">
                 <span>{format(day, 'EEE')}</span>
@@ -69,7 +70,7 @@ export default function WeekView({ tasksByDay, startDate, loading, onToggleTask,
                     key={task._id}
                     task={task}
                     onToggle={(id) => onToggleTask(id, dateKey)}
-                    onDelete={onDeleteTask}
+                    onDelete={(id) => onDeleteTask(id, dateKey)}
                     onToggleImportance={(id) => onToggleImportance(id, dateKey)}
                   />
                 ))

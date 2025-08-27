@@ -1,6 +1,7 @@
+
 "use client"
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, memo, useEffect } from 'react'
 import {
   eachDayOfInterval,
   startOfWeek,
@@ -20,7 +21,7 @@ interface WeeklyCalendarProps {
   onDateSelect: (date: Date) => void
 }
 
-export default function WeeklyCalendar({
+function WeeklyCalendar({
   selectedDate,
   onDateSelect,
 }: WeeklyCalendarProps) {
@@ -32,6 +33,16 @@ export default function WeeklyCalendar({
       end: endOfWeek(currentWeek, { weekStartsOn: 1 }),
     })
   }, [currentWeek])
+  
+  // This ensures the calendar view syncs up if the selectedDate is changed from an external source
+  // that falls outside the currently displayed week.
+  useEffect(() => {
+    const newCurrentWeek = startOfWeek(selectedDate, { weekStartsOn: 1 });
+    if (!isSameDay(newCurrentWeek, currentWeek)) {
+      setCurrentWeek(newCurrentWeek);
+    }
+  }, [selectedDate, currentWeek]);
+
 
   const handlePrevWeek = () => {
     setCurrentWeek(subWeeks(currentWeek, 1))
@@ -80,3 +91,5 @@ export default function WeeklyCalendar({
     </div>
   )
 }
+
+export default memo(WeeklyCalendar);

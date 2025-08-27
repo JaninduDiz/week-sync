@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { format, startOfDay, subDays } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import type { Task } from '@/types/task';
@@ -49,97 +49,76 @@ export default function Home() {
     return selectedDate ? format(startOfWeek(selectedDate, { weekStartsOn: 1 }), 'yyyy-MM-dd') : null;
   }, [selectedDate]);
 
-  useEffect(() => {
+  const refetchDayTasks = useCallback(async () => {
     if (!formattedDate) return;
-
-    const fetchTasks = async () => {
-      setLoading(true);
-      try {
-        const response = await fetch(`/api/tasks?date=${formattedDate}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch tasks');
-        }
-        const data = await response.json();
-        setTasks(data);
-      } catch (error) {
-        console.error(error);
-        toast({
-          title: "Error",
-          description: "Failed to load tasks. Please try again later.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTasks();
-  }, [formattedDate, toast]);
-
-  useEffect(() => {
-    if (view !== 'week' || !weekStartDate) return;
-
-    const fetchWeekTasks = async () => {
-      setLoading(true);
-      try {
-        const response = await fetch(`/api/tasks/week?startOfWeek=${weekStartDate}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch weekly tasks');
-        }
-        const data = await response.json();
-        setWeekTasks(data);
-      } catch (error) {
-        console.error(error);
-        toast({
-          title: "Error",
-          description: "Failed to load weekly tasks. Please try again later.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchWeekTasks();
-  }, [view, weekStartDate, toast]);
-
-  const refetchCurrentView = async () => {
-    if (view === 'day' && formattedDate) {
+    setLoading(true);
+    try {
       const response = await fetch(`/api/tasks?date=${formattedDate}`);
+      if (!response.ok) throw new Error('Failed to fetch tasks');
       const data = await response.json();
       setTasks(data);
-    } else if (view === 'week' && weekStartDate) {
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Error",
+        description: "Failed to load tasks. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [formattedDate, toast]);
+
+  const refetchWeekTasks = useCallback(async () => {
+    if (!weekStartDate) return;
+    setLoading(true);
+    try {
       const response = await fetch(`/api/tasks/week?startOfWeek=${weekStartDate}`);
+      if (!response.ok) throw new Error('Failed to fetch weekly tasks');
       const data = await response.json();
       setWeekTasks(data);
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Error",
+        description: "Failed to load weekly tasks. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-  }
+  }, [weekStartDate, toast]);
 
-  const handleDateSelect = (date: Date) => {
+  const refetchCurrentView = useCallback(async () => {
+    if (view === 'day') {
+      await refetchDayTasks();
+    } else if (view === 'week') {
+      await refetchWeekTasks();
+    }
+  }, [view, refetchDayTasks, refetchWeekTasks]);
+  
+  useEffect(() => {
+    if (view === 'day' && formattedDate) {
+      refetchDayTasks();
+    }
+  }, [view, formattedDate, refetchDayTasks]);
+
+  useEffect(() => {
+    if (view === 'week' && weekStartDate) {
+      refetchWeekTasks();
+    }
+  }, [view, weekStartDate, refetchWeekTasks]);
+
+
+  const handleDateSelect = useCallback((date: Date) => {
     setSelectedDate(startOfDay(date));
-  };
+  }, []);
 
   const addTask = async (text: string, category: Task['category']) => {
     if (text.trim() === '' || !formattedDate) return;
-    const optimisticTask: Task = {
-      _id: new Date().toISOString(), // temporary id
-      text,
-      completed: false,
-      category,
-      date: formattedDate,
-      isImportant: false,
-    };
-
+    
     setIsDialogOpen(false);
-    // Optimistic update for both views
-    if (view === 'day') {
-      setTasks(prev => [...prev, optimisticTask]);
-    } else {
-      setWeekTasks(prev => ({
-        ...prev,
-        [formattedDate]: [...(prev[formattedDate] || []), optimisticTask],
-      }));
-    }
-
-
+    
     try {
       const response = await fetch('/api/tasks', {
         method: 'POST',
@@ -148,7 +127,6 @@ export default function Home() {
       });
       if (!response.ok) throw new Error('Failed to add task');
       
-      // Refetch data to get the real task from the server
       await refetchCurrentView();
 
     } catch (error) {
@@ -158,12 +136,10 @@ export default function Home() {
         description: "Failed to save task. Please try again.",
         variant: "destructive",
       });
-      // Revert optimistic update
-      await refetchCurrentView();
     }
   };
   
-  const toggleTask = async (id: string, date: string) => {
+  const toggleTask = useCallback(async (id: string, date: string) => {
      try {
       const taskToToggle = view === 'day'
         ? tasks.find(t => t._id === id)
@@ -191,13 +167,26 @@ export default function Home() {
         variant: "destructive",
       });
     }
-  };
+  }, [tasks, view, weekTasks, refetchCurrentView, toast]);
 
-  const deleteTask = async (id: string) => {
+  const deleteTask = useCallback(async (id: string, date: string) => {
+    const originalTasks = tasks;
+    const originalWeekTasks = weekTasks;
+
+    // Optimistic update
+    if (view === 'day') {
+       setTasks(prev => prev.filter(t => t._id !== id));
+    } else {
+       setWeekTasks(prev => {
+        const newDayTasks = (prev[date] || []).filter(t => t._id !== id);
+        return {...prev, [date]: newDayTasks};
+       });
+    }
+
     try {
       const response = await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Failed to delete task');
-      await refetchCurrentView();
+      // No refetch needed on success due to optimistic update
     } catch (error) {
       console.error(error);
       toast({
@@ -205,10 +194,16 @@ export default function Home() {
         description: "Failed to delete task. Please try again.",
         variant: "destructive",
       });
+      // Revert on failure
+      if (view === 'day') {
+        setTasks(originalTasks);
+      } else {
+        setWeekTasks(originalWeekTasks);
+      }
     }
-  };
+  }, [tasks, view, weekTasks, toast]);
   
-  const toggleImportance = async (id: string, date: string) => {
+  const toggleImportance = useCallback(async (id: string, date: string) => {
     try {
       const taskToToggle = view === 'day'
         ? tasks.find(t => t._id === id)
@@ -235,7 +230,7 @@ export default function Home() {
         variant: "destructive",
       });
     }
-  };
+  }, [tasks, view, weekTasks, refetchCurrentView, toast]);
 
   const migrateTasks = async () => {
     const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
@@ -346,9 +341,10 @@ export default function Home() {
                         ) : (
                           <TaskList
                             tasks={tasks}
-                            onToggle={(id) => toggleTask(id, formattedDate!)}
+                            date={formattedDate!}
+                            onToggle={toggleTask}
                             onDelete={deleteTask}
-                            onToggleImportance={(id) => toggleImportance(id, formattedDate!)}
+                            onToggleImportance={toggleImportance}
                           />
                         )}
                       </div>
