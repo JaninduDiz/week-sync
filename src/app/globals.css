@@ -59,6 +59,6 @@
     @apply bg-background text-foreground;
   }
   html {
-    @apply text-[15px];
+    @apply text-[14px];
   }
 }
