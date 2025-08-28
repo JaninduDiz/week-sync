@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useMemo, memo, useEffect } from 'react'
+import { useState, useMemo, memo } from 'react'
 import {
   eachDayOfInterval,
   startOfWeek,
@@ -33,24 +33,27 @@ function WeeklyCalendar({
       end: endOfWeek(currentWeek, { weekStartsOn: 1 }),
     })
   }, [currentWeek])
-  
-  // This ensures the calendar view syncs up if the selectedDate is changed from an external source
-  // that falls outside the currently displayed week.
-  useEffect(() => {
-    const newCurrentWeek = startOfWeek(selectedDate, { weekStartsOn: 1 });
-    if (!isSameDay(newCurrentWeek, currentWeek)) {
-      setCurrentWeek(newCurrentWeek);
-    }
-  }, [selectedDate, currentWeek]);
-
 
   const handlePrevWeek = () => {
-    setCurrentWeek(subWeeks(currentWeek, 1))
+    const newWeekStart = subWeeks(currentWeek, 1);
+    setCurrentWeek(newWeekStart);
+    onDateSelect(newWeekStart);
   }
 
   const handleNextWeek = () => {
-    setCurrentWeek(addWeeks(currentWeek, 1))
+    const newWeekStart = addWeeks(currentWeek, 1);
+    setCurrentWeek(newWeekStart);
+    onDateSelect(newWeekStart);
   }
+
+  // Effect to sync current week with external selectedDate changes
+  useMemo(() => {
+      const newCurrentWeek = startOfWeek(selectedDate, { weekStartsOn: 1 });
+      if (!isSameDay(newCurrentWeek, currentWeek)) {
+          setCurrentWeek(newCurrentWeek);
+      }
+  }, [selectedDate]);
+
 
   return (
     <div className="bg-card p-2 rounded-xl shadow-sm">
