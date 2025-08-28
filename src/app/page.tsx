@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { format, startOfDay, subDays } from 'date-fns';
+import { format, startOfDay, subDays, startOfWeek } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import type { Task } from '@/types/task';
 import AppHeader from '@/components/app/AppHeader';
@@ -24,18 +24,27 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import WeekView from '@/components/app/WeekView';
-import { startOfWeek } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useTaskStore } from '@/store/taskStore';
 
 export default function Home() {
-  const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [view, setView] = useState('day');
-  const [weekTasks, setWeekTasks] = useState<Record<string, Task[]>>({});
-
+  
   const { toast } = useToast();
+  
+  const { 
+    tasks, 
+    weekTasks, 
+    loading, 
+    fetchDayTasks, 
+    fetchWeekTasks, 
+    addTask,
+    toggleTask,
+    deleteTask,
+    toggleImportance
+  } = useTaskStore();
 
   useEffect(() => {
     setSelectedDate(startOfDay(new Date()));
@@ -49,188 +58,36 @@ export default function Home() {
     return selectedDate ? format(startOfWeek(selectedDate, { weekStartsOn: 1 }), 'yyyy-MM-dd') : null;
   }, [selectedDate]);
 
-  const refetchDayTasks = useCallback(async () => {
-    if (!formattedDate) return;
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/tasks?date=${formattedDate}`);
-      if (!response.ok) throw new Error('Failed to fetch tasks');
-      const data = await response.json();
-      setTasks(data);
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: "Error",
-        description: "Failed to load tasks. Please try again later.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [formattedDate, toast]);
-
-  const refetchWeekTasks = useCallback(async () => {
-    if (!weekStartDate) return;
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/tasks/week?startOfWeek=${weekStartDate}`);
-      if (!response.ok) throw new Error('Failed to fetch weekly tasks');
-      const data = await response.json();
-      setWeekTasks(data);
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: "Error",
-        description: "Failed to load weekly tasks. Please try again later.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [weekStartDate, toast]);
-
   const refetchCurrentView = useCallback(async () => {
     if (view === 'day') {
-      await refetchDayTasks();
+      if (formattedDate) fetchDayTasks(formattedDate);
     } else if (view === 'week') {
-      await refetchWeekTasks();
+      if (weekStartDate) fetchWeekTasks(weekStartDate);
     }
-  }, [view, refetchDayTasks, refetchWeekTasks]);
+  }, [view, formattedDate, weekStartDate, fetchDayTasks, fetchWeekTasks]);
   
   useEffect(() => {
     if (view === 'day' && formattedDate) {
-      refetchDayTasks();
+      fetchDayTasks(formattedDate);
     }
-  }, [view, formattedDate, refetchDayTasks]);
+  }, [view, formattedDate, fetchDayTasks]);
 
   useEffect(() => {
     if (view === 'week' && weekStartDate) {
-      refetchWeekTasks();
+      fetchWeekTasks(weekStartDate);
     }
-  }, [view, weekStartDate, refetchWeekTasks]);
+  }, [view, weekStartDate, fetchWeekTasks]);
 
 
   const handleDateSelect = useCallback((date: Date) => {
     setSelectedDate(startOfDay(date));
   }, []);
 
-  const addTask = async (text: string, category: Task['category']) => {
+  const handleAddTask = async (text: string, category: Task['category']) => {
     if (text.trim() === '' || !formattedDate) return;
-    
     setIsDialogOpen(false);
-    
-    try {
-      const response = await fetch('/api/tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, category, date: formattedDate }),
-      });
-      if (!response.ok) throw new Error('Failed to add task');
-      
-      await refetchCurrentView();
-
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: "Error",
-        description: "Failed to save task. Please try again.",
-        variant: "destructive",
-      });
-    }
+    await addTask(text, category, formattedDate);
   };
-  
-  const toggleTask = useCallback(async (id: string, date: string) => {
-     try {
-      const taskToToggle = view === 'day'
-        ? tasks.find(t => t._id === id)
-        : weekTasks[date]?.find(t => t._id === id);
-
-      if (!taskToToggle) return;
-
-      const updatedCompletedState = !taskToToggle.completed;
-      
-      const response = await fetch(`/api/tasks/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ completed: updatedCompletedState }),
-      });
-
-      if (!response.ok) throw new Error('Failed to update task');
-      
-      await refetchCurrentView();
-
-    } catch (error) {
-       console.error(error);
-       toast({
-        title: "Error",
-        description: "Failed to sync task update. Please check your connection.",
-        variant: "destructive",
-      });
-    }
-  }, [tasks, view, weekTasks, refetchCurrentView, toast]);
-
-  const deleteTask = useCallback(async (id: string, date: string) => {
-    const originalTasks = tasks;
-    const originalWeekTasks = weekTasks;
-
-    // Optimistic update
-    if (view === 'day') {
-       setTasks(prev => prev.filter(t => t._id !== id));
-    } else {
-       setWeekTasks(prev => {
-        const newDayTasks = (prev[date] || []).filter(t => t._id !== id);
-        return {...prev, [date]: newDayTasks};
-       });
-    }
-
-    try {
-      const response = await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Failed to delete task');
-      // No refetch needed on success due to optimistic update
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: "Error",
-        description: "Failed to delete task. Please try again.",
-        variant: "destructive",
-      });
-      // Revert on failure
-      if (view === 'day') {
-        setTasks(originalTasks);
-      } else {
-        setWeekTasks(originalWeekTasks);
-      }
-    }
-  }, [tasks, view, weekTasks, toast]);
-  
-  const toggleImportance = useCallback(async (id: string, date: string) => {
-    try {
-      const taskToToggle = view === 'day'
-        ? tasks.find(t => t._id === id)
-        : weekTasks[date]?.find(t => t._id === id);
-
-      if (!taskToToggle) return;
-
-      const updatedImportanceState = !taskToToggle.isImportant;
-      
-      const response = await fetch(`/api/tasks/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isImportant: updatedImportanceState }),
-      });
-
-      if (!response.ok) throw new Error('Failed to update task');
-      await refetchCurrentView();
-
-    } catch (error) {
-       console.error(error);
-       toast({
-        title: "Error",
-        description: "Failed to sync task update. Please check your connection.",
-        variant: "destructive",
-      });
-    }
-  }, [tasks, view, weekTasks, refetchCurrentView, toast]);
 
   const migrateTasks = async () => {
     const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
@@ -378,14 +235,14 @@ export default function Home() {
               Add New Task
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="top-[20%] translate-y-[-20%] sm:top-[40%] sm:translate-y-[-40%]">
             <DialogHeader>
               <DialogTitle>Add a new task</DialogTitle>
               <DialogDescription>
                 What do you want to get done on {format(selectedDate, "MMM d")}?
               </DialogDescription>
             </DialogHeader>
-            <AddTaskForm onAddTask={addTask} />
+            <AddTaskForm onAddTask={handleAddTask} />
           </DialogContent>
         </Dialog>
       </footer>
